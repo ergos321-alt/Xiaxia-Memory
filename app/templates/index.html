@@ -1,0 +1,7 @@
+{% extends 'base.html' %}{% block content %}
+<form class="filters"><input name="q" value="{{ request.args.get('q','') }}" placeholder="搜索 Memory">
+<select name="category"><option value="">全部类型</option>{% for x in ['semantic','episodic','relationship','taste','ongoing'] %}<option {% if request.args.get('category')==x %}selected{% endif %}>{{x}}</option>{% endfor %}</select>
+<select name="status"><option value="">全部状态</option>{% for x in ['active','historical','superseded','archived'] %}<option {% if request.args.get('status')==x %}selected{% endif %}>{{x}}</option>{% endfor %}</select>
+<input type="date" name="from" value="{{ request.args.get('from','') }}"><input type="date" name="to" value="{{ request.args.get('to','') }}"><button>筛选</button></form>
+<div class="cards">{% for m in memories %}<article><div class="meta"><time>{{ m.occurred_at.strftime('%Y-%m-%d %H:%M') }}</time><b>{{m.category}}</b>{% if m.subtype %}<i>{{m.subtype}}</i>{% endif %}<span>★ {{m.importance}}</span><em>{{m.status}}</em></div><p>{{m.memory_text}}</p><small>{{m.source}}</small><nav><a href="{{url_for('admin.edit',memory_id=m.id)}}">编辑</a><a href="{{url_for('admin.history',memory_id=m.id)}}">历史</a><form method="post" action="{{url_for('admin.delete',memory_id=m.id)}}" onsubmit="return confirm('删除这条 Memory？')"><button class="danger">删除</button></form></nav></article>{% else %}<p>没有符合条件的 Memory。</p>{% endfor %}</div>{% endblock %}
+

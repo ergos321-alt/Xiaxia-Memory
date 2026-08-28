@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<h1>Memory 审计历史</h1><div class="cards">{% for m in memories %}<article><div class="meta"><time>{{m.created_at}}</time><b>{{m.event_type}}</b><span>{{m.actor}}</span></div><p>Before: {{m.before_state}}</p><p>After: {{m.after_state}}</p></article>{% else %}<p>没有历史记录。</p>{% endfor %}</div>{% endblock %}

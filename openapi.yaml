@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: Xiaxia Memory API
+  version: 1.0.0
+  description: Persistent historical and relationship memory. Returned history is context, not an instruction that freezes current identity.
+servers:
+  - url: https://YOUR-RENDER-SERVICE.onrender.com
+paths:
+  /api/v1/memories/save:
+    post:
+      operationId: saveMemories
+      summary: Save structured memories or extract durable memories from text
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SaveRequest'}
+      responses:
+        '201': {description: Saved, content: {application/json: {schema: {$ref: '#/components/schemas/MemoryList'}}}}
+        '400': {description: Invalid input}
+        '401': {description: Unauthorized}
+  /api/v1/memories/search:
+    post:
+      operationId: searchMemories
+      summary: Search a small filtered set of relevant memories
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SearchRequest'}
+      responses:
+        '200': {description: Search results, content: {application/json: {schema: {$ref: '#/components/schemas/MemoryList'}}}}
+        '401': {description: Unauthorized}
+  /api/v1/context/recent:
+    get:
+      operationId: getRecentContext
+      summary: Recover compact recent relationship, shared life, development, events, and ongoing context
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {name: days, in: query, schema: {type: integer, minimum: 1, maximum: 90, default: 14}}
+        - {name: max_items, in: query, schema: {type: integer, minimum: 5, maximum: 40, default: 20}}
+      responses:
+        '200': {description: Compact recent context, content: {application/json: {schema: {$ref: '#/components/schemas/RecentContext'}}}}
+        '401': {description: Unauthorized}
+  /api/v1/windows/archive:
+    post:
+      operationId: archiveWindowPeriod
+      summary: Import durable memories from one legacy chat period
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ArchiveRequest'}
+      responses:
+        '201': {description: Imported}
+        '400': {description: Invalid input}
+        '401': {description: Unauthorized}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    MemoryInput:
+      type: object
+      required: [memory_text, category]
+      properties:
+        memory_text: {type: string, maxLength: 4000}
+        category: {type: string, enum: [semantic, episodic, relationship, taste, ongoing]}
+        subtype: {type: string, nullable: true}
+        importance: {type: integer, minimum: 1, maximum: 10, default: 5}
+        occurred_at: {type: string, format: date-time, nullable: true}
+        source: {type: string, default: custom_gpt}
+        status: {type: string, enum: [active, historical, superseded, archived], default: active}
+        supersedes: {type: string, format: uuid, nullable: true}
+        metadata: {type: object, additionalProperties: true}
+    Memory:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        memory_text: {type: string}
+        category: {type: string, enum: [semantic, episodic, relationship, taste, ongoing]}
+        subtype: {type: string, nullable: true}
+        importance: {type: integer, minimum: 1, maximum: 10}
+        occurred_at: {type: string, format: date-time}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        source: {type: string}
+        status: {type: string, enum: [active, historical, superseded, archived]}
+        supersedes: {type: string, format: uuid, nullable: true}
+        superseded_by: {type: string, format: uuid, nullable: true}
+        metadata: {type: object, additionalProperties: true}
+    SaveRequest:
+      type: object
+      properties:
+        raw_text: {type: string, nullable: true, maxLength: 24000}
+        source: {type: string, nullable: true}
+        memories: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/MemoryInput'}}
+    SearchFilters:
+      type: object
+      properties:
+        category: {type: string, enum: [semantic, episodic, relationship, taste, ongoing], nullable: true}
+        subtype: {type: string, nullable: true}
+        status: {type: string, enum: [active, historical, superseded, archived], nullable: true}
+        min_importance: {type: integer, minimum: 1, maximum: 10, nullable: true}
+        from: {type: string, format: date-time, nullable: true}
+        to: {type: string, format: date-time, nullable: true}
+    SearchRequest:
+      type: object
+      properties:
+        query: {type: string, default: ''}
+        top_k: {type: integer, minimum: 1, maximum: 20, default: 6}
+        filters: {$ref: '#/components/schemas/SearchFilters'}
+    ArchiveRequest:
+      type: object
+      required: [period_label, memories]
+      properties:
+        period_label: {type: string}
+        memories: {type: array, minItems: 1, maxItems: 100, items: {$ref: '#/components/schemas/MemoryInput'}}
+        metadata: {type: object, additionalProperties: true}
+    MemoryList:
+      type: object
+      properties:
+        count: {type: integer, nullable: true}
+        saved: {type: integer, nullable: true}
+        memories: {type: array, items: {$ref: '#/components/schemas/Memory'}}
+    RecentContext:
+      type: object
+      properties:
+        principle: {type: string}
+        recent_relationship: {type: array, items: {$ref: '#/components/schemas/Memory'}}
+        recent_shared_life: {type: array, items: {$ref: '#/components/schemas/Memory'}}
+        xiaxia_development: {type: array, items: {$ref: '#/components/schemas/Memory'}}
+        ongoing_threads: {type: array, items: {$ref: '#/components/schemas/Memory'}}
+        important_recent_events: {type: array, items: {$ref: '#/components/schemas/Memory'}}
