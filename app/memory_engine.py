@@ -1,7 +1,10 @@
 import json
 import os
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from decimal import Decimal
+from enum import Enum
+from uuid import UUID
 
 os.environ.setdefault("MEM0_TELEMETRY", "false")
 from mem0 import Memory
@@ -271,7 +274,29 @@ class MemoryEngine:
         data = dict(domain.get("metadata") or {})
         data.update({key: domain.get(key) for key in ("category", "subtype", "importance", "occurred_at", "source", "status", "supersedes", "superseded_by") if domain.get(key) is not None})
         data["occurred_at_epoch"] = MemoryEngine._as_epoch(domain.get("occurred_at"))
-        data["xiaxia_schema"] = "v1"; return data
+        data["xiaxia_schema"] = "v1"
+        return MemoryEngine._json_safe(data)
+
+    @staticmethod
+    def _json_safe(value):
+        """Normalize PostgreSQL/Python values at the Mem0 metadata boundary."""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, (datetime, date, time)):
+            return value.isoformat()
+        if isinstance(value, UUID):
+            return str(value)
+        if isinstance(value, Decimal):
+            return int(value) if value.is_finite() and value == value.to_integral_value() else float(value)
+        if isinstance(value, Enum):
+            return MemoryEngine._json_safe(value.value)
+        if isinstance(value, dict):
+            return {str(key): MemoryEngine._json_safe(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [MemoryEngine._json_safe(item) for item in value]
+        if isinstance(value, (set, frozenset)):
+            return [MemoryEngine._json_safe(item) for item in sorted(value, key=str)]
+        raise TypeError(f"Unsupported Mem0 metadata value type: {type(value).__name__}")
 
     @staticmethod
     def _as_epoch(value):

@@ -5,6 +5,8 @@ os.environ.setdefault("MEM0_TELEMETRY", "false")
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
+from decimal import Decimal
+from uuid import UUID, uuid4
 
 import pytest
 from mem0 import Memory
@@ -158,6 +160,75 @@ def test_superseded_memory_remains_history_but_is_not_current(service):
     ids = [item["id"] for item in current]
     assert new["id"] in ids and old["id"] not in ids
     assert any(event["event_type"] == "superseded" for event in service.history(old["id"]))
+
+
+def test_postgresql_domain_values_are_json_safe_mem0_metadata():
+    occurred_at = datetime(2026, 8, 28, 9, 10, 11, tzinfo=timezone.utc)
+    domain_id = uuid4()
+    nested_id = uuid4()
+    metadata = MemoryEngine._mem0_metadata({
+        "mem0_id": domain_id,
+        "category": "relationship",
+        "subtype": "milestone",
+        "importance": Decimal("10"),
+        "occurred_at": occurred_at,
+        "source": "postgresql",
+        "status": "active",
+        "supersedes": domain_id,
+        "metadata": {
+            "nested": {"seen_at": occurred_at, "subject_id": nested_id},
+            "tuple_value": (nested_id, Decimal("1.25")),
+        },
+    })
+
+    assert json.loads(json.dumps(metadata, ensure_ascii=False)) == metadata
+    assert metadata["occurred_at"] == "2026-08-28T09:10:11+00:00"
+    assert metadata["supersedes"] == str(domain_id)
+    assert metadata["nested"] == {"seen_at": "2026-08-28T09:10:11+00:00", "subject_id": str(nested_id)}
+    assert metadata["tuple_value"] == [str(nested_id), 1.25]
+
+
+def test_supersede_accepts_postgresql_datetime_and_uuid_domain_row(service):
+    old = service.add_structured(structured("数据库读取的旧关系历史", metadata={"subject_id": str(uuid4())}))
+    old_row = service.repository.rows[old["id"]]
+    nested_id = uuid4()
+    old_row["occurred_at"] = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
+    old_row["mem0_id"] = UUID(old["id"])
+    old_row["metadata"] = {"nested": {"subject_id": nested_id, "seen_at": old_row["occurred_at"]}}
+
+    new = service.add_structured(structured(
+        "新的关系理解修订了旧判断", subtype="relationship_dynamic", supersedes=old["id"]
+    ))
+
+    old_mem0 = service.mem0.get(old["id"])
+    assert new["supersedes"] == old["id"]
+    assert old_mem0["metadata"]["occurred_at"] == "2026-08-27T12:00:00+00:00"
+    assert old_mem0["metadata"]["nested"]["subject_id"] == str(nested_id)
+    assert old_mem0["metadata"]["status"] == "superseded"
+
+
+def test_update_rollback_restores_postgresql_style_metadata(service):
+    row = service.add_structured(structured("Viewer 编辑前的稳定正文"))
+    stored = service.repository.rows[row["id"]]
+    nested_id = uuid4()
+    stored["occurred_at"] = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
+    stored["mem0_id"] = UUID(row["id"])
+    stored["metadata"] = {"subject_id": nested_id, "seen_at": stored["occurred_at"]}
+
+    def fail_repository_update(*args, **kwargs):
+        raise RuntimeError("simulated ledger update failure")
+
+    service.repository.update = fail_repository_update
+    with pytest.raises(RuntimeError, match="simulated ledger update failure"):
+        service.update(row["id"], "不应保留的临时正文", {
+            "category": "relationship", "subtype": "milestone", "importance": 9,
+            "occurred_at": stored["occurred_at"], "source": "viewer", "status": "active",
+        })
+
+    restored = service.mem0.get(row["id"])
+    assert restored["memory"] == "Viewer 编辑前的稳定正文"
+    assert restored["metadata"]["occurred_at"] == "2026-08-27T12:00:00+00:00"
+    assert restored["metadata"]["subject_id"] == str(nested_id)
 
 
 def test_mem0_search_top_k_metadata_and_time_filters(service):

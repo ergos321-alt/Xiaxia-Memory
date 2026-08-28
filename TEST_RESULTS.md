@@ -1,14 +1,15 @@
 # Test Results
 
-Execution date: 2026-08-27 UTC
+Execution date: 2026-08-28 UTC
 
 ## Completed in this environment
 
 - Python syntax compilation: passed.
-- Automated suite: **22 passed, 1 skipped**.
+- Automated suite: **25 passed, 1 skipped**.
 - Dependency consistency (`pip check`): passed.
 - Imported package version: **mem0ai 2.0.19**.
 - Actual Mem0 integration (no mocked `Memory` object): passed for `add(infer=True)`, `add(infer=False)`, `search()`, `get()`, `update()` followed by changed-text retrieval, `delete()` followed by absence, Legacy Import → Mem0 → search, relationship ledger linkage, supersede filtering, Viewer route edit and Recent Context composition.
+- JSON-safe metadata boundary regression: passed for PostgreSQL `datetime`, UUID and nested values, supersede metadata sync, and update rollback restoration through Mem0.
 - Contract tests: application has no runtime DDL, no self embedding call, no `xiaxia_mem0_engine`, ledger has no body/vector column, OpenAPI keeps conservative schema.
 
 The local integration uses a real Mem0 2.0.19 instance and a real local Qdrant vector store. LLM and embedding components are deterministic test implementations so the suite is repeatable and credential-free; this is not presented as a Qwen/Supabase production pass.
