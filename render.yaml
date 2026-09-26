@@ -3,7 +3,7 @@ services:
     name: xiaxia-memory-v1
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn 'app:create_app()' --bind 0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    startCommand: uvicorn mcp_app:app --host 0.0.0.0 --port $PORT --workers 1 --proxy-headers
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION

@@ -141,13 +141,20 @@ def test_viewer_edit_route_updates_mem0_embedding(service):
 
 
 def test_legacy_import_enters_mem0_and_recent_context(service):
-    saved = service.archive_period("旧窗口", [structured("旧窗口里，两人正式确认关系连续性")], {"branch": "real"})
+    occurred_at = datetime.now(timezone.utc).isoformat()
+    saved = service.archive_period("旧窗口", [structured(
+        "旧窗口里，两人正式确认关系连续性",
+        occurred_at=occurred_at,
+    )], {"branch": "real"})
     assert service.mem0.get(saved[0]["id"])["memory"] == "旧窗口里，两人正式确认关系连续性"
     assert service.search("关系连续性", {}, 5)
     recent = service.recent_context(14, 20)
     assert recent["recent_relationship"][0]["id"] == saved[0]["id"]
     assert service.repository.batches == [("旧窗口", 1, {"branch": "real"})]
-    repeated = service.archive_period("旧窗口重试", [structured("旧窗口里，两人正式确认关系连续性")], {"retry": True})
+    repeated = service.archive_period("旧窗口重试", [structured(
+        "旧窗口里，两人正式确认关系连续性",
+        occurred_at=occurred_at,
+    )], {"retry": True})
     assert repeated[0]["id"] == saved[0]["id"]
 
 

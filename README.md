@@ -16,7 +16,7 @@
 
 1. 在 Supabase SQL Editor 一次性运行 `migrations/001_init.sql`。默认 Qwen embedding 为 1024 维；改变维度前必须同步修改 SQL 与 `EMBEDDING_DIMENSIONS`。
 2. 复制 `.env.example` 到 Render 环境变量。`DATABASE_URL` 使用 Supabase Session Pooler 或兼容直连串；所有 Token/Key/密码只放服务端。
-3. Render 使用 `render.yaml`。单 worker、四线程避免多个进程争用 Mem0 本地 history SQLite；Domain pool 1、Mem0 主 collection pool 1–2、Mem0 entity collection pool 1–2，单实例最大 5 条 PostgreSQL 连接。
+3. Render 使用 `render.yaml`。Uvicorn 保持 `--workers 1`，`a2wsgi` bridge 保持 4 个 WSGI 线程，避免多个进程争用 Mem0 本地 history SQLite；Domain pool 1、Mem0 主 collection pool 1–2、Mem0 entity collection pool 1–2，单实例最大 5 条 PostgreSQL 连接。
 4. 访问 `/health` 和 `/admin/login`。将 `openapi.yaml` 的固定 server URL 改为真实 Render URL 后导入 Custom GPT Actions，并配置 Bearer Token。
 5. 将 `docs/CUSTOM_GPT_INSTRUCTIONS.md` 追加到 Custom GPT Instructions。
 6. 若从旧 V1 升级，按 `docs/MIGRATION_V1_TO_MEM0.md` 先导入并验证，再清理隔离的旧表。
@@ -27,6 +27,10 @@
 - `POST /api/v1/memories/search`：Mem0 语义检索，top-k 强制 1–20；Domain Layer 追加 subtype/importance/time 筛选。
 - `GET /api/v1/context/recent`：以一次有界 `Mem0.get_all()` 加一次 ledger 批量查询编排五个紧凑分区，不逐条 SELECT。
 - `POST /api/v1/windows/archive`：结构化旧窗口 Memory 真正进入 Mem0；精确重试由 ledger import key 幂等化。
+
+## MCP
+
+`/mcp` 提供与 OpenAPI operationId 同名的四个 MCP tools。每个 tool 只把参数转交给原 `/api/v1/*` HTTP route，并复用 `MEMORY_API_TOKEN`；Mem0、Domain Layer、Supersede 和 archive 幂等行为均由现有 API 负责。公网 `/mcp` 入站认证暂缓至统一 MCP Security Pass。
 
 ## 数据库与 Egress
 
