@@ -136,7 +136,7 @@ async def lifespan(_app: Starlette):
         yield
 
 
-host = os.environ.get("MEMORY_PUBLIC_HOST", "xiaxia-memory-v1.onrender.com")
+host = os.environ.get("MEMORY_PUBLIC_HOST", "xiaxia-memory.onrender.com")
 transport_security = TransportSecuritySettings(
     enable_dns_rebinding_protection=True,
     allowed_hosts=[host, f"{host}:*", "localhost:*", "127.0.0.1:*"],
