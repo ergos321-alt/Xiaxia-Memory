@@ -12,13 +12,17 @@
 
 完整职责和数据流见 `docs/ARCHITECTURE.md`，调用证据见 `docs/MEM0_2_0_19_EVIDENCE.md`。
 
+## Current ChatGPT integration
+
+The current entry point is ordinary ChatGPT → Xiaxia Plugin → Memory MCP (`/mcp`) → this service. The Custom GPT Action setup below and `docs/CUSTOM_GPT_INSTRUCTIONS.md` describe the historical integration only.
+
 ## 部署
 
 1. 在 Supabase SQL Editor 一次性运行 `migrations/001_init.sql`。默认 Qwen embedding 为 1024 维；改变维度前必须同步修改 SQL 与 `EMBEDDING_DIMENSIONS`。
 2. 复制 `.env.example` 到 Render 环境变量。`DATABASE_URL` 使用 Supabase Session Pooler 或兼容直连串；所有 Token/Key/密码只放服务端。
 3. Render 使用 `render.yaml`。Uvicorn 保持 `--workers 1`，`a2wsgi` bridge 保持 4 个 WSGI 线程，避免多个进程争用 Mem0 本地 history SQLite；Domain pool 1、Mem0 主 collection pool 1–2、Mem0 entity collection pool 1–2，单实例最大 5 条 PostgreSQL 连接。
-4. 访问 `/health` 和 `/admin/login`。将 `openapi.yaml` 的固定 server URL 改为真实 Render URL 后导入 Custom GPT Actions，并配置 Bearer Token。
-5. 将 `docs/CUSTOM_GPT_INSTRUCTIONS.md` 追加到 Custom GPT Instructions。
+4. 访问 `/health` 和 `/admin/login`。当前 ChatGPT 接入使用上面的 Plugin → MCP 路径。
+5. Historical only: the OpenAPI Custom GPT Action setup and `docs/CUSTOM_GPT_INSTRUCTIONS.md` are retained for older deployments and are not needed by the current entry point.
 6. 若从旧 V1 升级，按 `docs/MIGRATION_V1_TO_MEM0.md` 先导入并验证，再清理隔离的旧表。
 
 ## API
