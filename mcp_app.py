@@ -49,6 +49,8 @@ class SearchFilters(BaseModel):
 
 
 diary_app = create_app()
+from app.xiaxia_legacy import install as install_xiaxia_legacy_fence
+install_xiaxia_legacy_fence(diary_app)
 mcp = MCPServer("Xiaxia Memory")
 
 
